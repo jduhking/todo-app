@@ -4,45 +4,84 @@ import './App.css'
 interface Todo {
   id: string;
   message: string;
-  complete: boolean;
+  completed: boolean;
 }
-const TodoComponent: FC<Todo> = ({ id, message, complete}) => {
-  
-  return (
-    <div style={{ paddingLeft: '2%', paddingRight: '2%', flex: 1, alignItems: 'center', display: 'flex', flexDirection: 'row',  backgroundColor: 'white', borderRadius: 10, color: 'black'}} >
-        <button type='button' role="checkbox" style={{ 
-          marginRight: '5%',
-          borderRadius: '200%', 
-          cursor: 'pointer',
-          backgroundColor: 'white',
-          borderColor: 'black',
-          width: 22,
-          height: 22
-        }} />
-        <p>{message}</p>
-    </div>
-  )
+interface TaskInput {
+  message: string;
 }
-function App() {
-  const [todos, setTodos] = useState<Todo[]>([{
-    id: '1',
-    message: 'Make a mockup for the inapp UI',
-    complete: false
-  }])
-  const [taskInputModalVisible, setTaskInputModalVisible] = useState<boolean>();
-  const [taskInput, setTaskInput] = useState<string>();
-  const [labelVisible, setLabelVisible] = useState<boolean>(true);
-  useEffect(() => {
-    console.log(taskInput)
-  }, [taskInput])
 
+function App() {
+
+  const baseUrl = 'http://localhost:8000'
+  const [todos, setTodos] = useState<Todo[]>([])
+  const [taskInputModalVisible, setTaskInputModalVisible] = useState<boolean>();
+  const [labelVisible, setLabelVisible] = useState<boolean>(true);
+
+  const fetchTodos = async () => {
+    console.log('fetching todos...')
+    const reqUrl = baseUrl + '/todos'
+    const response = await fetch(reqUrl)
+    const todoList = await response.json()
+    console.log(todoList)
+    setTodos(todoList)
+  }
+
+  useEffect(() => {
+    fetchTodos()
+  }, [])
+
+  const TodoComponent: FC<Todo> = ({ id, message, completed}) => {
+
+    const handleCheck = async () => {
+      const url = baseUrl + `/todo/toggle/${id}`
+      console.log('toggling check')
+      const response = await fetch(url, {
+        method: "POST",
+        mode: "cors",
+      })
+      console.log('response : ', await response.json())
+      // refetch
+      await fetchTodos()
+    }
+
+    return (
+      <div style={{ paddingLeft: '2%', paddingRight: '2%', flex: 1, alignItems: 'center', display: 'flex', flexDirection: 'row',  backgroundColor: 'white', borderRadius: 10, color: 'black',
+      marginBottom: '2%'}} >
+          <button type='button' role="checkbox" style={{ 
+            marginRight: '5%',
+            borderRadius: '200%', 
+            cursor: 'pointer',
+            backgroundColor: completed ? 'red' : 'white',
+            borderColor: completed ? 'red' :' black',
+            width: 22,
+            height: 22
+          }} 
+          onClick={handleCheck}/>
+          <p>{message}</p>
+      </div>
+    )
+  }
+
+  const createTask = async (taskInput: TaskInput) => {
+    const response = await fetch(baseUrl + '/todo', {
+      method: "POST",
+      mode: "cors",
+      body: JSON.stringify(taskInput)
+    })
+    console.log(await response.json())
+    // refetch todos
+    fetchTodos()
+  }
   const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     const form = e.currentTarget
     const formElements = form.elements as typeof form.elements & {
       taskinput: {value: string}
     }
-    setTaskInput(formElements.taskinput.value)
+    let newTask : TaskInput = {
+      "message" : formElements.taskinput.value,
+    }
+    createTask(newTask)
     setTaskInputModalVisible(false)
   }
 
@@ -54,7 +93,7 @@ function App() {
     <div style={{ marginBottom: '5%'}}>
       {
         todos.map((todo) => {
-          return <TodoComponent key={todo.id} id={todo.id} message={todo.message} complete={todo.complete} />
+          return <TodoComponent key={todo.id} id={todo.id} message={todo.message} completed={todo.completed} />
         })
       }
     </div>
